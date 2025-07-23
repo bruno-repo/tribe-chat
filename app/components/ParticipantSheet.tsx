@@ -1,54 +1,65 @@
 import React from 'react';
-import { View, Text, FlatList, Modal, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import BottomSheet from './BottomSheet';
 import { useChatStore } from '../store/ChatStore';
 
 export default function ParticipantSheet() {
-  const participantsOpen = useChatStore((s) => s.participantSheetOpen);
-  const closeSheet = () => useChatStore.getState().setParticipantSheetOpen(false);
-  const participants = useChatStore((s) => s.participants);
+  const user = useChatStore((s) => s.participantSheetUser);
+  const setUser = useChatStore((s) => s.setParticipantSheetUser);
 
-  if (!participantsOpen) return null;
+  if (!user) return null;
 
   return (
-    <Modal transparent animationType="slide" visible={participantsOpen}>
-      <TouchableOpacity style={styles.backdrop} onPress={closeSheet} />
-      <View style={styles.sheet}>
-        <Text style={styles.title}>Participants</Text>
-        <FlatList
-          data={participants}
-          keyExtractor={(item) => item.uuid}
-          renderItem={({ item }) => (
-            <View style={styles.row}>
-              <Text style={styles.name}>{item.name}</Text>
-            </View>
-          )}
-        />
+    <BottomSheet onClose={() => setUser(null)}>
+      <View style={styles.container}>
+        {user.avatarUrl ? (
+          <Image source={{ uri: user.avatarUrl }} style={styles.avatar} />
+        ) : (
+          <View style={styles.avatarPlaceholder}>
+            <Text style={styles.initial}>{user.name[0]}</Text>
+          </View>
+        )}
+        <Text style={styles.name}>{user.name}</Text>
+        {user.jobTitle ? (
+          <Text style={styles.jobTitle}>{user.jobTitle}</Text>
+        ) : null}
+        {user.bio ? (
+          <Text style={styles.bio} numberOfLines={2}>{user.bio}</Text>
+        ) : null}
+        {/* Add more user details here if you have */}
       </View>
-    </Modal>
+    </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: '#00000088',
+  container: {
+    alignItems: 'center',
   },
-  sheet: {
-    backgroundColor: '#fff',
-    padding: 20,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    maxHeight: '50%',
-  },
-  title: {
-    fontWeight: '600',
-    fontSize: 16,
+  avatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     marginBottom: 12,
   },
-  row: {
-    paddingVertical: 10,
+  avatarPlaceholder: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#ccc',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  initial: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#555',
   },
   name: {
-    fontSize: 16,
+    fontSize: 22,
+    fontWeight: '600',
   },
+    jobTitle: { fontSize: 16, color: '#666', marginBottom: 6 },
+  bio: { fontSize: 14, color: '#888', textAlign: 'center' },
 });

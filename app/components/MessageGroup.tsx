@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Message, useChatStore } from '../store/ChatStore';
 import { groupReactionsByEmoji } from '../utils/reactionUtils';
@@ -15,8 +15,11 @@ interface Props {
 export default function MessageGroup({ group }: Props) {
   const getParticipant = useChatStore((s) => s.getParticipant);
   const setReplyToMessage = useChatStore((s) => s.setReplyToMessage);
+  const setReactionListMessage = useChatStore((s) => s.setReactionListMessage);
   const setReactionSheetMessage = useChatStore((s) => s.setReactionSheetMessage);
   const setImageModalUrl = useChatStore((s) => s.setImageModalUrl);
+  const setParticipantSheetUser = useChatStore((s) => s.setParticipantSheetUser);
+  const [activeMessageUuid, setActiveMessageUuid] = useState<string | null>(null);
   const allMessages = useChatStore((s) => s.messages);
 
   const participant = getParticipant(group.authorUuid);
@@ -41,7 +44,9 @@ export default function MessageGroup({ group }: Props) {
           </View>
         )}
         <View>
-          <Text style={styles.name}>{participant.name}</Text>
+          <Pressable onPress={() => setParticipantSheetUser(participant)}>
+            <Text style={styles.name}>{participant.name}</Text>
+          </Pressable>
           <Text style={styles.time}>{formatTime(group.firstSentAt)}</Text>
         </View>
       </View>
@@ -53,23 +58,31 @@ export default function MessageGroup({ group }: Props) {
           ? allMessages.find((m) => m.uuid === msg.replyToMessageUuid)
           : undefined;
 
+        const isActive = activeMessageUuid === msg.uuid;
+
         return (
+        <View key={msg.uuid} style={styles.messageWrapper}>
           <Pressable
             key={msg.uuid}
-            onLongPress={() => setReplyToMessage(msg)}
-            onPress={() => setReactionSheetMessage(msg)}
+            onLongPress={() => { setReplyToMessage(msg); setActiveMessageUuid(msg.uuid);}}
+            onPress={() => { setReactionSheetMessage(msg); setActiveMessageUuid(msg.uuid);}}
+            onPressOut={() => setActiveMessageUuid(null)}
             style={styles.messageContainer}
           >
             {/* Reply preview */}
             {replyToMessage && (
-              <View style={styles.replyPreview}>
+              <Pressable style={styles.replyPreview}>
                 <Text style={styles.replyName}>
                   {getParticipant(replyToMessage.authorUuid)?.name || 'Unknown'}
                 </Text>
                 <Text style={styles.replyText} numberOfLines={1}>
-                  {replyToMessage.text}
+                  {replyToMessage.text?.trim()
+                    ? replyToMessage.text
+                    : replyToMessage.attachments.length > 0
+                    ? 'Media message'
+                    : 'Empty message'}
                 </Text>
-              </View>
+              </Pressable>
             )}
 
             {/* Text */}
@@ -93,15 +106,25 @@ export default function MessageGroup({ group }: Props) {
             {msg.reactions.length > 0 && (
               <View style={styles.reactionsRow}>
                 {Object.entries(groupReactionsByEmoji(msg.reactions)).map(([emoji, reactions]) => (
-                  <View key={emoji} style={styles.reaction}>
+                  <Pressable
+                    key={emoji}
+                    style={styles.reaction}
+                    onPress={() => setReactionListMessage(msg)}
+                  >
                     <Text>
                       {emoji} {reactions.length}
                     </Text>
-                  </View>
+                  </Pressable>
                 ))}
               </View>
             )}
           </Pressable>
+          {isActive && (
+            <Pressable onPress={() => setReplyToMessage(msg)} style={styles.replyIcon}>
+              <Text style={{ fontSize: 16 }}>↩️</Text>
+            </Pressable>
+          )}
+        </View>
         );
       })}
     </View>
@@ -124,6 +147,11 @@ const styles = StyleSheet.create({
   },
   name: { fontWeight: '700', fontSize: 14 },
   time: { fontSize: 12, color: '#666' },
+  messageWrapper: {
+    position: 'relative',
+    marginBottom: 8,
+    paddingLeft: 44,
+  },
   messageContainer: { marginBottom: 8, paddingLeft: 44 },
   messageText: { fontSize: 15, lineHeight: 20, color: '#222' },
   edited: { fontSize: 12, color: '#888' },
@@ -143,5 +171,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     marginRight: 6,
+  },
+  replyIcon: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    padding: 4,
   },
 });
